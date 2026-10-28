@@ -1,0 +1,407 @@
+<title>Skyltstudio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Young+Serif&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: app shell with a top bar; overview = a "wall" where screen thumbnails are placed as in the shop; editor = form + live preview */
+:root{
+  --bg:#f1f3f7; --surface:#ffffff; --fg:#141c29; --muted:#5a6578; --line:#dbe0e8;
+  --accent:#2b56cc; --accent-soft:#e3eafb; --wall:#e5e8ee; --wall-dot:#cdd3dd;
+  --good:#1e9654; --off:#98a1ad; --warn:#b7791f; --warn-soft:#fbf1df;
+  --ui:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  /* the café's own brand, used only inside screens (a TV looks the same in any theme) */
+  --k-green:#1f3d33; --k-gold:#e3b45c; --k-paper:#f6efe3;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e131a; --surface:#161d27; --fg:#e6ebf2; --muted:#97a2b2; --line:#29323f;
+  --accent:#7f9cff; --accent-soft:#1c2740; --wall:#121821; --wall-dot:#232c39;
+  --good:#3cc47c; --off:#6b7584; --warn:#e2a64a; --warn-soft:#2b2214; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e131a; --surface:#161d27; --fg:#e6ebf2; --muted:#97a2b2; --line:#29323f;
+  --accent:#7f9cff; --accent-soft:#1c2740; --wall:#121821; --wall-dot:#232c39;
+  --good:#3cc47c; --off:#6b7584; --warn:#e2a64a; --warn-soft:#2b2214; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 40px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:16px;border-bottom:1px solid var(--line);margin-bottom:20px}
+.brand{font-weight:700;font-size:17px;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.brand i{width:18px;height:12px;border:2px solid var(--accent);border-radius:3px;display:inline-block}
+.org{color:var(--muted);font-size:13px}
+.nav{display:flex;gap:4px;margin-left:auto}
+.nav button{background:none;border:0;padding:8px 12px;border-radius:8px;color:var(--muted);font-weight:500}
+.nav button[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
+.demo-tag{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--warn);background:var(--warn-soft);padding:3px 8px;border-radius:99px;font-weight:600}
+h1{font-size:22px;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:4px 0 0}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);padding:9px 14px;border-radius:9px;font-weight:600;font-size:14px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.primary{color:#0e131a}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#0e131a}}
+.btn:disabled{opacity:.45;cursor:default}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:7px 12px 7px 10px;font-size:13px;font-weight:600;display:flex;gap:7px;align-items:center}
+.chip small{font-weight:400;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--off);flex:none}
+.dot.on{background:var(--good)}
+.draft{font-size:11px;font-weight:600;color:var(--warn);background:var(--warn-soft);padding:2px 7px;border-radius:99px}
+/* wall */
+.wall-wrap{overflow-x:auto;border-radius:14px;border:1px solid var(--line)}
+.wall{position:relative;width:980px;height:400px;background-color:var(--wall);
+  background-image:radial-gradient(var(--wall-dot) 1.2px,transparent 1.3px);background-size:18px 18px;touch-action:none}
+.counter{position:absolute;left:36px;bottom:24px;width:740px;height:44px;border-radius:8px;border:1.5px dashed var(--wall-dot);
+  color:var(--muted);font-size:12px;letter-spacing:.08em;text-transform:uppercase;display:grid;place-items:center}
+.window{position:absolute;right:24px;top:24px;bottom:24px;width:170px;border-left:1.5px dashed var(--wall-dot);color:var(--muted);
+  font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px}
+.scr{position:absolute;user-select:none;-webkit-user-select:none;cursor:grab;display:flex;flex-direction:column;gap:6px}
+.scr.dragging{cursor:grabbing;z-index:5}
+.scr.dragging .frame{box-shadow:0 14px 30px rgba(0,0,0,.28)}
+.scr .cap{display:flex;gap:6px;align-items:center;font-size:12.5px;font-weight:600}
+.scr .cap small{color:var(--muted);font-weight:400}
+.frame{position:relative;overflow:hidden;border-radius:6px;background:#000;border:5px solid #111;box-sizing:content-box;box-shadow:0 2px 8px rgba(0,0,0,.12);max-width:100%}
+.hint{color:var(--muted);font-size:13px;margin:10px 0 0}
+@media (max-width:700px){
+  .wall-wrap{border:0;overflow:visible}
+  .wall{width:auto;height:auto;background:none;display:grid;grid-template-columns:1fr;gap:18px}
+  .counter,.window{display:none}
+  .scr{position:static!important;cursor:pointer}
+}
+/* editor */
+.ed{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:24px;align-items:start;margin-top:18px}
+@media (max-width:860px){.ed{grid-template-columns:minmax(0,1fr)}.ed .pv{order:-1}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label,.lbl{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.field input[type=text],.field select{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 10px;width:100%}
+.count{font-size:12px;color:var(--muted);text-align:right}
+.seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{flex:1;border:0;background:var(--bg);padding:8px 6px;font-size:13px;font-weight:500;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.plist{display:flex;flex-direction:column;gap:2px;max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px}
+.plist label{display:flex;gap:10px;align-items:center;padding:6px 8px;border-radius:6px;font-size:14px}
+.plist label:hover{background:var(--bg)}
+.plist label span{flex:1}
+.plist label em{font-style:normal;color:var(--muted);font-variant-numeric:tabular-nums}
+.toggle{display:flex;gap:10px;align-items:center;font-weight:600;font-size:14px}
+.toggle input{width:18px;height:18px;accent-color:var(--accent)}
+.pv{position:sticky;top:12px}
+.pv .frame{border-width:8px}
+.pvbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:13px;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+/* products */
+.ptable-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+table{border-collapse:collapse;width:100%;min-width:520px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+td input{border:1px solid transparent;background:transparent;border-radius:6px;padding:6px 8px;width:100%}
+td input:hover,td input:focus{border-color:var(--line);background:var(--bg)}
+td.num input{font-variant-numeric:tabular-nums;max-width:110px}
+.uses{color:var(--muted);font-size:13px}
+/* player */
+.player{position:fixed;inset:0;background:#000;z-index:50;display:grid;place-items:center}
+.player .frame{border:0;border-radius:0;box-shadow:none}
+.player .close{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:9px;padding:8px 14px;font-weight:600}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;z-index:60}
+.foot{margin-top:28px;color:var(--muted);font-size:13px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.linkbtn{background:none;border:0;color:var(--accent);padding:0;font-weight:600}
+
+/* ---------- screen templates (fixed 1920x1080 / 1080x1920 stage) ---------- */
+.stage{position:absolute;left:0;top:0;transform-origin:0 0;width:1920px;height:1080px;background:var(--k-green);color:var(--k-paper);
+  font-family:"DM Sans",system-ui,sans-serif;overflow:hidden}
+.stage.p{width:1080px;height:1920px}
+.st-head{display:flex;align-items:baseline;justify-content:space-between;padding:80px 110px 0}
+.st-logo{font-size:34px;letter-spacing:.42em;color:var(--k-gold);font-weight:700}
+.st-h{font-family:"Young Serif",Georgia,serif;line-height:1.05;margin:0}
+.st-grid{display:grid;grid-template-columns:1fr 1fr;column-gap:120px;row-gap:34px;padding:70px 110px 0}
+.p .st-grid{grid-template-columns:1fr;padding:80px 90px 0}
+.p .st-head{padding:90px 90px 0;flex-direction:column;gap:30px}
+.st-item{display:flex;align-items:baseline;gap:18px;font-size:54px}
+.st-item .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-item .lead{flex:1;border-bottom:4px dotted rgba(246,239,227,.35);transform:translateY(-12px);min-width:30px}
+.st-item .pr{font-weight:700;color:var(--k-gold);white-space:nowrap}
+.st-item .old{font-size:34px;text-decoration:line-through;opacity:.55;margin-right:12px;color:var(--k-paper);font-weight:400}
+.st-banner{position:absolute;left:0;right:0;bottom:0;height:160px;background:var(--k-gold);color:var(--k-green);display:flex;align-items:center;
+  justify-content:center;font-family:"Young Serif",Georgia,serif;font-size:72px;gap:40px}
+.st-banner b{font-family:"DM Sans",sans-serif;font-size:30px;letter-spacing:.3em;text-transform:uppercase}
+.st-empty{padding:120px 110px;font-size:48px;opacity:.6}
+/* single offer */
+.so{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:20px;padding:80px}
+.so .tag{font-size:40px;letter-spacing:.32em;color:var(--k-gold);text-transform:uppercase;font-weight:700}
+.bun{width:420px;height:420px;border-radius:50%;margin:30px 0;
+  background:repeating-radial-gradient(circle at 52% 48%,#b8743a 0 22px,#d79a57 22px 40px);box-shadow:inset 0 -30px 60px rgba(0,0,0,.25),0 30px 60px rgba(0,0,0,.3)}
+.stage:not(.p) .so{flex-direction:row;gap:90px;text-align:left}
+.stage:not(.p) .so .txt{display:flex;flex-direction:column;gap:18px;align-items:flex-start}
+.p .so .txt{display:flex;flex-direction:column;gap:18px;align-items:center}
+.so .name{font-family:"Young Serif",Georgia,serif;line-height:1.02}
+.so .price{font-size:230px;font-weight:700;color:var(--k-gold);line-height:1}
+.so .old{font-size:70px;text-decoration:line-through;opacity:.55}
+.so .ctext{font-size:56px;background:var(--k-gold);color:var(--k-green);padding:14px 40px;border-radius:999px;font-weight:700}
+/* themes */
+.fx{position:absolute;inset:0;pointer-events:none}
+.flake{position:absolute;top:-40px;border-radius:50%;background:#fff;opacity:.85;animation:fall linear infinite}
+@keyframes fall{to{transform:translateY(2050px)}}
+.th-jul .st-head::after{content:"";position:absolute;left:0;right:0;top:0;height:22px;
+  background:repeating-linear-gradient(90deg,#b8322f 0 60px,#f6efe3 60px 120px)}
+.th-halloween{background:#1d1b24}
+.th-halloween .st-logo,.th-halloween .st-item .pr,.th-halloween .so .price,.th-halloween .so .tag{color:#ef8a2b}
+.th-halloween .st-banner,.th-halloween .so .ctext{background:#ef8a2b;color:#1d1b24}
+.pk{position:absolute;width:150px;height:118px;border-radius:50%/55%;background:radial-gradient(ellipse at 50% 40%,#f59a3c,#c9601b);
+  box-shadow:inset 26px 0 0 -18px rgba(0,0,0,.18),inset -26px 0 0 -18px rgba(0,0,0,.18)}
+.pk::before{content:"";position:absolute;left:66px;top:-24px;width:18px;height:34px;background:#3e5a2a;border-radius:6px}
+.pk::after{content:"";position:absolute;left:40px;top:44px;width:70px;height:26px;
+  background:radial-gradient(circle at 15% 30%,#ffd56b 0 9px,transparent 10px),radial-gradient(circle at 85% 30%,#ffd56b 0 9px,transparent 10px);}
+@media (prefers-reduced-motion:reduce){.flake{animation:none;top:auto}}
+</style>
+
+<div id="app"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(function(){
+const KEY="skyltstudio-demo-v2";
+const seed=()=>({
+  products:[
+    {id:"p1",name:"Kanelbulle",price:35,campaign:29},
+    {id:"p2",name:"Kardemummabulle",price:38,campaign:null},
+    {id:"p3",name:"Lussekatt",price:32,campaign:null},
+    {id:"p4",name:"Kladdkaka",price:45,campaign:null},
+    {id:"p5",name:"Cappuccino",price:45,campaign:null},
+    {id:"p6",name:"Caffè latte",price:49,campaign:42},
+    {id:"p7",name:"Bryggkaffe",price:32,campaign:null},
+    {id:"p8",name:"Chai latte",price:52,campaign:null},
+    {id:"p9",name:"Ostfralla",price:59,campaign:null},
+    {id:"p10",name:"Räksmörgås",price:119,campaign:null},
+    {id:"p11",name:"Pumpasoppa",price:89,campaign:null}
+  ],
+  screens:[
+    {id:"s1",name:"Meny vänster",orient:"l",online:true,layout:{x:36,y:90},
+      pub:{template:"menu",theme:"halloween",heading:"Fika",products:["p1","p2","p4","p3"],featured:"p1",campaign:false,campaignText:""}},
+    {id:"s2",name:"Meny mitten",orient:"l",online:true,layout:{x:288,y:90},
+      pub:{template:"menu",theme:"halloween",heading:"Kaffe & te",products:["p5","p6","p7","p8"],featured:"p6",campaign:true,campaignText:"Latte + bulle 69:-"}},
+    {id:"s3",name:"Meny höger",orient:"l",online:true,layout:{x:540,y:90},
+      pub:{template:"menu",theme:"halloween",heading:"Lunch",products:["p9","p10","p11"],featured:"p11",campaign:false,campaignText:""}},
+    {id:"s4",name:"Skyltfönster",orient:"p",online:false,layout:{x:810,y:72},
+      pub:{template:"single",theme:"halloween",heading:"Veckans bulle",products:[],featured:"p1",campaign:true,campaignText:"Endast denna vecka"}}
+  ]
+});
+let S;
+try{S=JSON.parse(localStorage.getItem(KEY)||"null")}catch(e){S=null}
+if(!S||!S.screens)S=seed();
+S.screens.forEach(s=>{if(!s.draft)s.draft=JSON.parse(JSON.stringify(s.pub))});
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+let view={name:"overview",id:null};
+const $=s=>document.querySelector(s);
+const esc=t=>String(t??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const P=id=>S.products.find(p=>p.id===id);
+const kr=n=>n+":-";
+const dirty=s=>JSON.stringify(s.draft)!==JSON.stringify(s.pub);
+const num=s=>S.screens.indexOf(s)+1;
+function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2200)}
+
+/* auto-shrink: big text gets smaller as it grows longer, never below a floor */
+const fit=(text,base,max,floor)=>Math.max(floor,Math.min(base,base*max/Math.max(1,String(text).length)));
+
+function rnd(i){const x=Math.sin(i*99.13)*10000;return x-Math.floor(x)}
+function themeFx(theme,portrait){
+  if(theme==="jul"){let h="";for(let i=0;i<46;i++){const sz=6+rnd(i)*14;
+    h+=`<span class="flake" style="left:${(rnd(i+7)*100).toFixed(1)}%;width:${sz}px;height:${sz}px;animation-duration:${(7+rnd(i+3)*9).toFixed(1)}s;animation-delay:-${(rnd(i+11)*14).toFixed(1)}s"></span>`}
+    return `<div class="fx">${h}</div>`}
+  if(theme==="halloween"){
+    const pos=portrait?[[60,1690],[880,1720],[760,1640]]:[[1700,880],[1560,920],[60,900]];
+    return `<div class="fx">${pos.map(([x,y],i)=>`<div class="pk" style="left:${x}px;top:${y}px;transform:scale(${[1,.8,.65][i]})"></div>`).join("")}</div>`}
+  return "";
+}
+function priceHTML(p,c,cls){
+  if(c.campaign&&p.campaign) return `<span class="${cls}"><span class="old">${kr(p.price)}</span>${kr(p.campaign)}</span>`;
+  return `<span class="${cls}">${kr(p.price)}</span>`;
+}
+function stageInner(s,c){
+  const portrait=s.orient==="p";
+  let body="";
+  if(c.template==="menu"){
+    const items=c.products.map(P).filter(Boolean).slice(0,8);
+    const hs=fit(c.heading||" ",portrait?150:130,10,72);
+    body=`<div class="st-head"><div class="st-logo">KANEL</div><h2 class="st-h" style="font-size:${hs}px">${esc(c.heading)}</h2></div>`+
+      (items.length?`<div class="st-grid">${items.map(p=>`<div class="st-item"><span class="n">${esc(p.name)}</span><span class="lead"></span>${priceHTML(p,c,"pr")}</div>`).join("")}</div>`
+       :`<div class="st-empty">Välj produkter att visa</div>`);
+    if(c.campaign&&c.campaignText) body+=`<div class="st-banner"><b>Kampanj</b>${esc(c.campaignText)}</div>`;
+  }else{
+    const p=P(c.featured)||S.products[0];
+    const ns=fit(p.name,portrait?150:140,9,80);
+    const price=(c.campaign&&p.campaign)?p.campaign:p.price;
+    body=`<div class="so"><div class="bun"></div><div class="txt"><div class="tag">${esc(c.heading||"Erbjudande")}</div>
+      <div class="name" style="font-size:${ns}px">${esc(p.name)}</div>
+      <div>${c.campaign&&p.campaign?`<span class="old">${kr(p.price)}</span>`:""}<div class="price">${kr(price)}</div></div>
+      ${c.campaign&&c.campaignText?`<div class="ctext">${esc(c.campaignText)}</div>`:""}</div></div>`;
+  }
+  return body+themeFx(c.theme,portrait);
+}
+function frame(s,c,w){
+  const portrait=s.orient==="p",W=portrait?1080:1920,H=portrait?1920:1080,k=w/W;
+  return `<div class="frame" style="width:${w}px;height:${Math.round(H*k)}px"><div class="stage ${portrait?"p":""} th-${c.theme}" style="transform:scale(${k})">${stageInner(s,c)}</div></div>`;
+}
+const listMode=()=>matchMedia("(max-width:700px)").matches;
+
+function nav(){
+  return `<header class="top"><div class="brand"><i></i>Skyltstudio</div><span class="org">Café Kanel · Storgatan 12</span><span class="demo-tag">Demo</span>
+  <nav class="nav"><button data-go="overview" ${view.name!=="products"?'aria-current="page"':""}>Skärmar</button><button data-go="products" ${view.name==="products"?'aria-current="page"':""}>Produkter</button></nav></header>`;
+}
+function renderOverview(){
+  const nd=S.screens.filter(dirty).length;
+  const lm=listMode();
+  const avail=Math.min(document.body.clientWidth-32,600);
+  return nav()+`
+  <div class="row" style="justify-content:space-between">
+    <div><h1>Alla skärmar</h1><p class="sub">${S.screens.filter(s=>s.online).length} av ${S.screens.length} online · visar det som syns i butiken just nu</p></div>
+    <button class="btn primary" id="pubAll" ${nd?"":"disabled"}>Publicera alla${nd?` (${nd})`:""}</button>
+  </div>
+  <div class="chips">${S.screens.map(s=>`<button class="chip" data-open="${s.id}"><span class="dot ${s.online?"on":""}"></span>Skärm ${num(s)} <small>${esc(s.name)}</small>${dirty(s)?'<span class="draft">Utkast</span>':""}</button>`).join("")}</div>
+  <div class="wall-wrap"><div class="wall" id="wall">
+    <div class="counter">Kassadisk</div><div class="window">Skyltfönster</div>
+    ${S.screens.map(s=>{const w=lm?(s.orient==="p"?Math.min(220,avail):avail):(s.orient==="p"?124:216);
+      return `<div class="scr" data-id="${s.id}" style="left:${s.layout.x}px;top:${s.layout.y}px" tabindex="0" role="button" aria-label="Redigera skärm ${num(s)}">
+      ${frame(s,s.pub,w)}<div class="cap"><span class="dot ${s.online?"on":""}"></span>Skärm ${num(s)} <small>${esc(s.name)}${s.online?"":" · offline"}</small>${dirty(s)?'<span class="draft">Utkast</span>':""}</div></div>`}).join("")}
+  </div></div>
+  <p class="hint">${lm?"Tryck på en skärm för att redigera den. På en större skärm kan du dra dem så att de står som i butiken.":"Dra skärmarna så att de står som i butiken. Klicka på en skärm för att redigera den."}</p>`+foot();
+}
+function renderEditor(){
+  const s=S.screens.find(x=>x.id===view.id),c=s.draft,d=dirty(s);
+  const isMenu=c.template==="menu";
+  const plist=S.products.map(p=>{const on=c.products.includes(p.id),full=!on&&c.products.length>=8;
+    return `<label><input type="checkbox" data-prod="${p.id}" ${on?"checked":""} ${full?"disabled":""}><span>${esc(p.name)}</span><em>${kr(p.price)}</em></label>`}).join("");
+  return nav()+`
+  <div class="row" style="justify-content:space-between">
+    <div><button class="linkbtn" data-go="overview">‹ Alla skärmar</button>
+      <h1 style="margin-top:6px">Skärm ${num(s)} · ${esc(s.name)}</h1>
+      <p class="sub"><span class="dot ${s.online?"on":""}" style="display:inline-block;margin-right:6px"></span>${s.online?"Online":"Offline – visar senast publicerade när den kommer tillbaka"} · ${s.orient==="p"?"Stående":"Liggande"}</p></div>
+  </div>
+  <div class="chips">${S.screens.map(x=>`<button class="chip" data-open="${x.id}" ${x.id===s.id?'style="border-color:var(--accent);color:var(--accent)"':""}><span class="dot ${x.online?"on":""}"></span>Skärm ${num(x)}${dirty(x)?'<span class="draft">Utkast</span>':""}</button>`).join("")}</div>
+  <div class="ed">
+    <div class="panel">
+      <div class="field"><label for="f-name">Namn på skärmen</label><input type="text" id="f-name" maxlength="20" value="${esc(s.name)}"></div>
+      <div class="field"><label for="f-tpl">Mall</label><select id="f-tpl">
+        <option value="menu" ${isMenu?"selected":""}>Meny, upp till 8 rader</option>
+        <option value="single" ${!isMenu?"selected":""}>Ett stort erbjudande</option></select></div>
+      <div class="field"><span class="lbl">Tema</span><div class="seg" role="group" aria-label="Tema">
+        ${[["none","Inget"],["jul","Jul"],["halloween","Halloween"]].map(([v,l])=>`<button data-theme-set="${v}" aria-pressed="${c.theme===v}">${l}</button>`).join("")}</div></div>
+      <div class="field"><label for="f-head">${isMenu?"Rubrik":"Etikett"}</label><input type="text" id="f-head" maxlength="24" value="${esc(c.heading)}"><span class="count" id="c-head">${c.heading.length}/24</span></div>
+      ${isMenu?`<div class="field"><span class="lbl">Produkter (${c.products.length}/8)</span><div class="plist">${plist}</div></div>`
+        :`<div class="field"><label for="f-feat">Produkt</label><select id="f-feat">${S.products.map(p=>`<option value="${p.id}" ${p.id===c.featured?"selected":""}>${esc(p.name)} – ${kr(p.price)}</option>`).join("")}</select></div>`}
+      <label class="toggle"><input type="checkbox" id="f-camp" ${c.campaign?"checked":""}>Kampanj på</label>
+      <div class="field" ${c.campaign?"":"hidden"}><label for="f-ctext">Kampanjtext</label><input type="text" id="f-ctext" maxlength="30" value="${esc(c.campaignText)}"><span class="count" id="c-ctext">${c.campaignText.length}/30</span>
+        <span class="count" style="text-align:left">Produkter med kampanjpris visar det automatiskt.</span></div>
+      <div class="actions">
+        <button class="btn primary" id="publish" ${d?"":"disabled"}>Publicera</button>
+        <button class="btn" id="revert" ${d?"":"disabled"}>Ångra ändringar</button>
+      </div>
+    </div>
+    <div class="pv"><div class="pvbar"><span>${d?'<span class="draft">Utkast</span> Förhandsvisning – inte publicerat än':"Så här ser skärmen ut nu"}</span><button class="btn" id="play">Visa på skärm</button></div>
+      <div id="pvbox"></div></div>
+  </div>`+foot();
+}
+function renderProducts(){
+  const uses=id=>S.screens.filter(s=>s.pub.template==="menu"?s.pub.products.includes(id):s.pub.featured===id).map(s=>"Skärm "+num(s));
+  return nav()+`<h1>Produkter</h1><p class="sub">En gemensam lista för alla skärmar. Ändrar du ett pris här syns det direkt på alla skärmar som visar produkten.</p>
+  <div class="ptable-wrap" style="margin-top:18px"><table><thead><tr><th>Produkt</th><th>Pris (kr)</th><th>Kampanjpris (kr)</th><th>Visas på</th></tr></thead><tbody>
+  ${S.products.map(p=>`<tr><td><input id="pn-${p.id}" data-pf="name" data-pid="${p.id}" value="${esc(p.name)}" maxlength="22" aria-label="Namn"></td>
+    <td class="num"><input id="pp-${p.id}" type="number" min="0" data-pf="price" data-pid="${p.id}" value="${p.price}" aria-label="Pris"></td>
+    <td class="num"><input id="pc-${p.id}" type="number" min="0" placeholder="–" data-pf="campaign" data-pid="${p.id}" value="${p.campaign??""}" aria-label="Kampanjpris"></td>
+    <td class="uses">${uses(p.id).join(", ")||"–"}</td></tr>`).join("")}
+  </tbody></table></div>
+  <div class="row" style="margin-top:14px"><button class="btn" id="addp">Lägg till produkt</button></div>`+foot();
+}
+const foot=()=>`<div class="foot">Klickbar demo med påhittat exempel (Café Kanel). Ändringar sparas bara i din webbläsare. <button class="linkbtn" id="reset">Återställ demon</button></div>`;
+
+function render(){
+  const app=$("#app");
+  app.innerHTML=view.name==="overview"?renderOverview():view.name==="editor"?renderEditor():renderProducts();
+  if(view.name==="editor")drawPreview();
+}
+function drawPreview(){
+  const s=S.screens.find(x=>x.id===view.id),box=$("#pvbox");if(!box)return;
+  let w=box.clientWidth-16;if(s.orient==="p")w=Math.min(w,320);
+  box.innerHTML=frame(s,s.draft,Math.max(200,w));
+}
+function commit(rerender=true){save();if(rerender)render();}
+
+/* events */
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button,[data-open]");if(!t)return;
+  if(t.dataset.go){view={name:t.dataset.go,id:null};render();window.scrollTo(0,0);return}
+  if(t.dataset.open){view={name:"editor",id:t.dataset.open};render();window.scrollTo(0,0);return}
+  if(t.id==="reset"){try{localStorage.removeItem(KEY)}catch(e){}S=seed();S.screens.forEach(s=>s.draft=JSON.parse(JSON.stringify(s.pub)));view={name:"overview",id:null};render();toast("Demon är återställd");return}
+  if(t.id==="pubAll"){const n=S.screens.filter(dirty);n.forEach(s=>s.pub=JSON.parse(JSON.stringify(s.draft)));commit();toast(`${n.length} skärmar publicerade`);return}
+  if(t.id==="addp"){const id="p"+Date.now();S.products.push({id,name:"Ny produkt",price:0,campaign:null});commit();setTimeout(()=>{const el=$("#pn-"+id);el&&el.select()},0);return}
+  const s=S.screens.find(x=>x.id===view.id);if(!s)return;
+  if(t.dataset.themeSet){s.draft.theme=t.dataset.themeSet;commit();return}
+  if(t.id==="publish"){s.pub=JSON.parse(JSON.stringify(s.draft));commit();toast(s.online?`Publicerat på skärm ${num(s)}`:`Publicerat. Skärm ${num(s)} uppdateras när den är online igen`);return}
+  if(t.id==="revert"){s.draft=JSON.parse(JSON.stringify(s.pub));commit();toast("Ändringarna är ångrade");return}
+  if(t.id==="play"){openPlayer(s);return}
+});
+document.addEventListener("input",e=>{
+  const t=e.target;
+  if(t.dataset.pf){const p=P(t.dataset.pid);if(t.dataset.pf==="name")p.name=t.value;else{const v=t.value===""?null:Math.max(0,Math.round(+t.value));p[t.dataset.pf]=t.dataset.pf==="price"?(v??0):v}save();return}
+  const s=S.screens.find(x=>x.id===view.id);if(!s)return;
+  if(t.id==="f-name"){s.name=t.value;save();return}
+  if(t.id==="f-head"){s.draft.heading=t.value;$("#c-head").textContent=t.value.length+"/24";save();refreshDirty(s);drawPreview();return}
+  if(t.id==="f-ctext"){s.draft.campaignText=t.value;$("#c-ctext").textContent=t.value.length+"/30";save();refreshDirty(s);drawPreview();return}
+});
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset.pf){commit();return}
+  const s=S.screens.find(x=>x.id===view.id);if(!s)return;
+  if(t.id==="f-name"){commit();return}
+  if(t.id==="f-tpl"){s.draft.template=t.value;commit();return}
+  if(t.id==="f-feat"){s.draft.featured=t.value;commit();return}
+  if(t.id==="f-camp"){s.draft.campaign=t.checked;commit();return}
+  if(t.dataset.prod){const id=t.dataset.prod;s.draft.products=t.checked?[...s.draft.products,id]:s.draft.products.filter(x=>x!==id);commit();return}
+});
+function refreshDirty(s){
+  const d=dirty(s);$("#publish").disabled=!d;$("#revert").disabled=!d;
+  const bar=$(".pvbar span");if(bar)bar.innerHTML=d?'<span class="draft">Utkast</span> Förhandsvisning – inte publicerat än':"Så här ser skärmen ut nu";
+}
+document.addEventListener("keydown",e=>{
+  const sc=e.target.closest&&e.target.closest(".scr");
+  if(sc&&(e.key==="Enter"||e.key===" ")){e.preventDefault();view={name:"editor",id:sc.dataset.id};render()}
+  if(e.key==="Escape"&&$(".player")){$(".player").remove()}
+});
+
+/* drag on the wall: snap to an 18px grid, click without moving opens the editor */
+let drag=null;const G=18;
+document.addEventListener("pointerdown",e=>{
+  const sc=e.target.closest(".scr");if(!sc||e.button>0)return;
+  if(listMode()){return}
+  const s=S.screens.find(x=>x.id===sc.dataset.id);
+  drag={el:sc,s,sx:e.clientX,sy:e.clientY,ox:s.layout.x,oy:s.layout.y,moved:false};
+  sc.setPointerCapture(e.pointerId);
+});
+document.addEventListener("pointermove",e=>{
+  if(!drag)return;const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
+  if(!drag.moved&&Math.hypot(dx,dy)<5)return;
+  drag.moved=true;drag.el.classList.add("dragging");
+  const wall=$("#wall"),maxX=wall.clientWidth-drag.el.offsetWidth-6,maxY=wall.clientHeight-drag.el.offsetHeight-6;
+  const x=Math.max(6,Math.min(maxX,Math.round((drag.ox+dx)/G)*G)),y=Math.max(6,Math.min(maxY,Math.round((drag.oy+dy)/G)*G));
+  drag.el.style.left=x+"px";drag.el.style.top=y+"px";drag.nx=x;drag.ny=y;
+});
+document.addEventListener("pointerup",e=>{
+  if(!drag)return;const d=drag;drag=null;d.el.classList.remove("dragging");
+  if(d.moved){d.s.layout={x:d.nx,y:d.ny};save();toast("Placeringen är sparad")}
+  else{view={name:"editor",id:d.s.id};render();window.scrollTo(0,0)}
+});
+document.addEventListener("click",e=>{const sc=e.target.closest(".scr");if(sc&&listMode()){view={name:"editor",id:sc.dataset.id};render();window.scrollTo(0,0)}});
+
+function openPlayer(s){
+  const W=s.orient==="p"?1080:1920,H=s.orient==="p"?1920:1080;
+  const k=Math.min(innerWidth/W,innerHeight/H);
+  const el=document.createElement("div");el.className="player";
+  el.innerHTML=frame(s,s.pub,Math.floor(W*k))+`<button class="close" id="pclose">Stäng</button>`;
+  document.body.appendChild(el);
+  el.querySelector("#pclose").addEventListener("click",()=>el.remove());
+  if(dirty(s))toast("Visar publicerad version. Publicera för att se utkastet här.");
+}
+let rt;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(()=>{if(view.name==="editor")drawPreview();else if(view.name==="overview")render()},150)});
+render();
+})();
+</script>

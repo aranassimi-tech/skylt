@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+/* Colors from the demo. Customer brand colors are only used inside screens. */
+:root {
+  --bg: #f1f3f7;
+  --surface: #ffffff;
+  --fg: #141c29;
+  --muted: #5a6578;
+  --line: #dbe0e8;
+  --accent: #2b56cc;
+  --accent-soft: #e3eafb;
+  --on-accent: #ffffff;
+  --good: #1e9654;
+  --off: #98a1ad;
+  --warn: #b7791f;
+  --warn-soft: #fbf1df;
+  --bad: #c0392b;
+  --bad-soft: #fbe5e2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e131a;
+    --surface: #161d27;
+    --fg: #e6ebf2;
+    --muted: #97a2b2;
+    --line: #29323f;
+    --accent: #7f9cff;
+    --accent-soft: #1c2740;
+    --on-accent: #0e131a;
+    --good: #3cc47c;
+    --off: #6b7584;
+    --warn: #e2a64a;
+    --warn-soft: #2b2214;
+    --bad: #ff8a7a;
+    --bad-soft: #3a1d1a;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-good: var(--good);
+  --color-off: var(--off);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --font-sans: var(--font-ui), system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
